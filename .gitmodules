@@ -2,3 +2,5 @@
 	path = darknet
 	url = https://github.com/Kabhilesh-Giri/darknet-yolo.git
 	branch = yolo-soc
+[submodules "darknet"]
+	ignore = untracked
