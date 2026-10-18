@@ -1,0 +1,7 @@
+ GPU isn't used 
+mini_batch = 1, batch = 1, time_steps = 1, train = 0 
+
+ seen 64, trained: 32013 K-images (500 Kilo-batches_64) 
+ Detection layer: 16 - type = 28 
+ Detection layer: 23 - type = 28 
+ssh: Predicted in 483.819000 milli-seconds.
