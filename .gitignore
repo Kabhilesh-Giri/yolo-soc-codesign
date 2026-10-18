@@ -33,3 +33,10 @@
 
 # model weights (downloaded, never committed)
 *.weights
+
+# run outputs (curated copies go in results/)
+logs/
+qemu.log
+
+# downloaded at build time
+tools/qemu-prof/qemu-plugin.h

@@ -27,7 +27,15 @@ TAG         := $(notdir $(basename $(CFG)))_$(notdir $(basename $(IMAGE)))
 DETECT      := detector test $(DATA) $(CFG) $(WEIGHTS) $(IMAGE) -dont_show -ext_output
 DETECTIONS  := '^[a-z ]+: [0-9]+%'
 
-.PHONY: help all x86 arm run-x86 run-user deploy run-qemu boot compare clean
+
+# ---- Profiling: per-function ARM instruction counts with a QEMU plugin
+PROF_DIR    := tools/qemu-prof
+PLUGIN      := $(PROF_DIR)/libfuncprof.so
+PLUGIN_HDR  := $(PROF_DIR)/qemu-plugin.h
+QEMU_VER    := 6.1.0
+PLUGIN_HDR_URL := https://gitlab.com/qemu-project/qemu/-/raw/v$(QEMU_VER)/include/qemu/qemu-plugin.h
+
+.PHONY: help all x86 arm run-x86 run-user deploy run-qemu boot compare clean profile 
 
 help:
 	@echo "make x86       build Darknet for this PC            -> darknet/darknet"
@@ -37,7 +45,9 @@ help:
 	@echo "make boot      boot the emulated ZedBoard (qemu-esl); quit with Ctrl-a x"
 	@echo "make run-qemu  copy to the booted board and detect   -> $(LOGDIR)/qemu-esl_$(TAG).txt"
 	@echo "make compare   check every log's detections against x86"
+	@echo "make profile   per-function ARM instruction profile    -> $(LOGDIR)/perframe_$(TAG).txt"
 	@echo "make clean     remove x86 and ARM build outputs"
+
 
 all: x86 arm
 
@@ -81,6 +91,24 @@ compare:
 	  else echo "MISMATCH  ($$n detections)  $$(basename $$f)"; fi; \
 	done
 
+$(PLUGIN_HDR):
+	curl -fsSL -o $@ $(PLUGIN_HDR_URL)
+
+$(PLUGIN): $(PROF_DIR)/funcprof.c $(PLUGIN_HDR)
+	gcc -std=gnu11 -O2 -Wall -Wextra -fPIC -shared -I$(PROF_DIR) -o $@ $< -pthread
+
+profile: arm $(PLUGIN) $(DARKNET)/$(WEIGHTS) | $(LOG)
+	source $(SDK_ENV) && cd $(DARKNET) && \
+	for n in 1 2; do \
+	  for i in $$(seq $$n); do echo $(IMAGE); done | \
+	  qemu-arm -cpu cortex-a9 -L $$OECORE_TARGET_SYSROOT -d plugin -D /dev/null \
+	    -plugin $(abspath $(PLUGIN)),arg=out=$(LOG)/funcprof_$${n}frame_$(TAG).txt \
+	    ./$(ARM_EXE) detector test $(DATA) $(CFG) $(WEIGHTS) -dont_show -ext_output \
+	    > $(LOG)/profile-run_$${n}frame_$(TAG).txt 2>&1 || exit 1; \
+	done
+	python3 $(PROF_DIR)/perframe.py $(LOG)/funcprof_1frame_$(TAG).txt $(LOG)/funcprof_2frame_$(TAG).txt | tee $(LOG)/perframe_$(TAG).txt
+
 clean:
 	$(MAKE) -C $(DARKNET) clean
 	rm -rf $(DARKNET)/$(ARM_OBJ) $(DARKNET)/$(ARM_EXE)
+	$(PLUGIN)

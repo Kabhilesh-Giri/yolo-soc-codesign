@@ -1,0 +1,22 @@
+# per-frame instructions: 5,013,837,684  (2-frame run minus 1-frame run)
+# rank    instructions       %    cum%  function
+     1   4,423,470,496   88.23   88.23  gemm_cpu
+     2     163,304,922    3.26   91.48  forward_maxpool_layer_avx
+     3     146,152,412    2.91   94.40  im2col_cpu_ext
+     4      54,227,842    1.08   95.48  activate_array_cpu_custom
+     5      35,347,987    0.71   96.18  [shared libraries: libc, libm, ld.so]
+     6      34,113,167    0.68   96.86  stbi_write_jpg_core.part.0
+     7      24,506,323    0.49   97.35  resize_image
+     8      23,639,821    0.47   97.82  stbiw__jpg_processDU.constprop.0
+     9      23,051,520    0.46   98.28  stbi__YCbCr_to_RGB_row
+    10      22,364,139    0.45   98.73  stbi__idct_block
+    11      19,906,560    0.40   99.13  stbiw__jpg_DCT
+    12       9,222,519    0.18   99.31  load_image_stb
+    13       7,811,321    0.16   99.47  forward_convolutional_layer.localalias
+    14       6,435,278    0.13   99.60  stbi__jpeg_decode_block
+    15       4,894,033    0.10   99.69  save_image_options.constprop.0
+    16       3,550,217    0.07   99.76  stbi__grow_buffer_unsafe
+    17       2,961,708    0.06   99.82  tile_images.localalias
+    18       1,420,623    0.03   99.85  activate_array
+    19       1,302,294    0.03   99.88  stbi__load_main
+    20       1,150,556    0.02   99.90  stbi__jpeg_huff_decode
