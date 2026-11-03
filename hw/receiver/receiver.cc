@@ -132,7 +132,7 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 			if(CSR == 1) // check 0x01 ADD
 			{
-				printf("Receiver Turned On\n");
+				printf("Receiver Power On\n");
 				receiverPowerOn.notify();
 			}
 
