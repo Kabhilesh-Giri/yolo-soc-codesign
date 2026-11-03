@@ -36,10 +36,10 @@ void SWEmu::thread_process()
 {
 
     // set base address of device to communicate to
-    dev_addr_set(0x48000000ULL); 
+    dev_addr_set(0x50000000ULL); 
     // simulate some startup  delay
     usleep(10);
-    word_write(0x0, 1);
+    word_write(0x0, 44);
 
     usleep(10);
     

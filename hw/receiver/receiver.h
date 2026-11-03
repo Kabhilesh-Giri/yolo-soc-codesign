@@ -13,7 +13,7 @@
 class receiver
 	: public sc_core::sc_module
 {
-	// uint32_t CSR{};
+	uint32_t CSR{};
 	// sc_core::sc_event receiverAPUPath;
 	// sc_core::sc_event receiverADCPath;
 

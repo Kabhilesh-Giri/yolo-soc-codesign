@@ -80,13 +80,13 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 	// handle reads commands
 	if (cmd == tlm::TLM_READ_COMMAND) {
-		// static sc_time old_ts = SC_ZERO_TIME, diff;
-		// uint32_t v = 0;
-		// switch (addr)
-		// {
-		// case CSR_REGISTER:
-		// 	v = CSR;
-		// 	break;
+		static sc_time old_ts = SC_ZERO_TIME, diff;
+		uint32_t v = 0;
+		switch (addr)
+		{
+		case CSR_REGISTER:
+			v = CSR;
+			break;
 		
 		// case PATH_APU: // 0x01
 		// 	break;	
@@ -96,22 +96,25 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 			
 		// default:
 		// 	break;
-		// }
-		// memcpy(data, &v, len);
+		}
+		memcpy(data, &v, len);
 
 	// handle write commands
 	} else if (cmd == tlm::TLM_WRITE_COMMAND) {
-		// static sc_time old_ts = SC_ZERO_TIME, diff;
-		// switch (addr) {
+		static sc_time old_ts = SC_ZERO_TIME, diff;
+		switch (addr) {
 
-		// case CSR_REGISTER:
-		// 	CSR = *(unsigned int *)data;
+		case CSR_REGISTER:
+			// CSR = *(unsigned int *)data;
+			printf("CSR Register Triggered\n");
+			printf("Data Passed %u\n", *(unsigned int *)data);
 
-		// 	if(CSR == 1) // check 0x01 ADD
-		// 	{
+			if(CSR == 1) // check 0x01 ADD
+			{
+				CSR = 0;
 		// 		printf("Vector Add Triggered\n");
 		// 		receiverAPUPath.notify();
-		// 	}
+			}
 
 		// 	else if(CSR == 2) // check 0x02 SUB
 		// 	{
@@ -120,21 +123,24 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		// 	}
 		// 	else
 		// 		CSR = 0; // To Stop Polling 
-		// 	break;
-
-        // case PATH_APU: // 0x01
-		// 	break;	
+			break;
+        case PATH_APU: // 0x01
+			printf("PATH_APU Register Triggered\n");
+			printf("Data Passed %u\n", *(unsigned int *)data);
+			break;	
             
-		// case PATH_ADC: // 0x02
-		// 	break;	
+		case PATH_ADC: // 0x02
+			printf("PATH_ADC Register Triggered\n");
+			printf("Data Passed %u\n", *(unsigned int *)data);
+			break;	
 
-		// default:
-		// 	break;
+		default:
+			break;
 		}
-	// } else {
-	// 	// no other commands supported
-	// 	trans.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
-	// }
+	} else {
+		// no other commands supported
+		trans.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+	}
 }
 
 unsigned int receiver::transport_dbg(tlm::tlm_generic_payload &trans)

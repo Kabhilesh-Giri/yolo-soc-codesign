@@ -46,7 +46,7 @@ using namespace std;
 #include "soc/xilinx/zynq/xilinx-zynq.h"
 
 #define NR_MASTERS 1
-#define NR_DEVICES 2
+#define NR_DEVICES 3
 
 SC_MODULE(Top)
 {
@@ -81,9 +81,6 @@ SC_MODULE(Top)
 
 		bus.memmap(0x49000000ULL, 0x100 - 1, // Vector Processor Device
 				   ADDRMODE_RELATIVE, -1, vecProc.socket);
-
-		bus.memmap(0x50000000ULL, 0x100 - 1, // Receiver Device
-					ADDRMODE_RELATIVE, -1, vecProc.socket);
 
 		zynq.m_axi_gp[0]->bind(*(bus.t_sk[0]));
 
