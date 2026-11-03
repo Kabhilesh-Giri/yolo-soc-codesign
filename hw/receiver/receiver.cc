@@ -6,12 +6,11 @@
 
 #include <inttypes.h>
 
-#include "tlm_utils/simple_initiator_socket.h"
+#include <fstream>
+#include <sstream>
+#include <string>
+
 #include "tlm_utils/simple_target_socket.h"
-
-using namespace sc_core;
-using namespace std;
-
 #include "receiver.h"
 
 receiver::receiver(sc_module_name name)
@@ -20,26 +19,55 @@ receiver::receiver(sc_module_name name)
 	socket.register_b_transport(this, &receiver::b_transport);
 	socket.register_transport_dbg(this, &receiver::transport_dbg);
 
-	// SC_THREAD(op_thread);
+	SC_THREAD(op_thread);
 }
 
-// void receiver::op_thread()
-// {
-// 	for(;;)
-// 	{	
-// 		// wait(receiverAPUPath | receiverADCPath);
+void receiver::read_csv()
+{
 
-// 		// if(receiverAPUPath.triggered())
+	ifstream file("/home/kabhi/work/personal/vectorWave/InputSignal/helloworldSignal.csv");
 
-// 		// if(receiverADCPath.triggered())
+	if(!file.is_open())
+	{
+		cout<<"Receiver : cannot open signal file\n";
+		return;
+	}
 
-// 		wait(5, SC_MS); // Wait for 5 ms when it gets notified
+	string line;
+	getline(file, line);
 
-// 		CSR = 0; // Operation has concluded reset the CSR Bit
+	while(getline(file, line)) {
+		stringstream ss(line);
+		string t, i, q;
+		getline(ss, t, ',');
+		getline(ss, i, ',');
+		getline(ss, q, ',');
 
-// 		cout << "Operation has concluded resetted Receiver CSR bit \n";
-// 	}
-// }
+		cout << "t=" << t << "ns I=" << i << " Q=" << q << endl;
+	}
+	file.close();
+}
+
+void receiver::op_thread()
+{
+	for(;;)
+	{	
+		wait(receiverPowerOn);
+		printf("Signals Receiving \n");
+		read_csv();
+		// wait(receiverAPUPath | receiverADCPath);
+
+		// if(receiverAPUPath.triggered())
+
+		// if(receiverADCPath.triggered())
+
+		wait(5, SC_MS); // Wait for 5 ms when it gets notified
+
+		CSR = 0; // Operation has concluded reset the CSR Bit
+
+		cout << "Operation has concluded resetted Receiver CSR bit \n";
+	}
+}
 
 // called when a TLM transaction arrives for this target
 void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
@@ -62,16 +90,10 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		trans.set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
 		return;
 	}
-	// besides that, let everything pass 
-	// note: even an access to a non existing MMR passes
+
 	trans.set_response_status(tlm::TLM_OK_RESPONSE);
 
-	// Annotate that this target needs 1us to think 
-	// about how to answer an MMR request (not processing)
-	// This delay is on top of transport delay (which the iconnect should model).
 	delay += sc_time(1, SC_US);
-
-	// force to catch up any quantum delay offset (to make it easier for now)
 	wait(delay);
 	delay = sc_time(0, SC_US);
 
@@ -105,15 +127,13 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		switch (addr) {
 
 		case CSR_REGISTER:
-			// CSR = *(unsigned int *)data;
+			CSR = *(unsigned int *)data;
 			printf("CSR Register Triggered\n");
-			printf("Data Passed %u\n", *(unsigned int *)data);
 
 			if(CSR == 1) // check 0x01 ADD
 			{
-				CSR = 0;
-		// 		printf("Vector Add Triggered\n");
-		// 		receiverAPUPath.notify();
+				printf("Receiver Turned On\n");
+				receiverPowerOn.notify();
 			}
 
 		// 	else if(CSR == 2) // check 0x02 SUB

@@ -10,12 +10,16 @@
 
 #include <inttypes.h>
 
+using namespace sc_core;
+using namespace std;
+
 class receiver
 	: public sc_core::sc_module
 {
 	uint32_t CSR{};
-	// sc_core::sc_event receiverAPUPath;
-	// sc_core::sc_event receiverADCPath;
+	sc_core::sc_event receiverPowerOn;
+	sc_core::sc_event receiverAPUPath;
+	sc_core::sc_event receiverADCPath;
 
 public:
 	tlm_utils::simple_target_socket<receiver> socket;
@@ -26,5 +30,6 @@ public:
 							 sc_time &delay);
 	virtual unsigned int transport_dbg(tlm::tlm_generic_payload &trans);
 
-	// void op_thread();
+	void op_thread();
+	void read_csv();
 };

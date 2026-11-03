@@ -39,7 +39,7 @@ void SWEmu::thread_process()
     dev_addr_set(0x50000000ULL); 
     // simulate some startup  delay
     usleep(10);
-    word_write(0x0, 44);
+    word_write(0x0, 1);
 
     usleep(10);
     
