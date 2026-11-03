@@ -16,7 +16,7 @@ using namespace std;
 SC_MODULE(SWEmu)
 {
     tlm_utils::simple_initiator_socket<SWEmu> socket; /// master interface to access bus
-    sc_in<bool> irq1, irq2;
+    sc_in<bool> irq1, irq2, irq3;
  
     SC_CTOR(SWEmu) : socket("socket")
     {
@@ -30,6 +30,9 @@ SC_MODULE(SWEmu)
 
         SC_METHOD(isr2);
         sensitive << irq2.pos();
+
+        SC_METHOD(isr3); // Receiver
+        sensitive << irq3.pos();
 
         // reset timeOffset within quantum (all processes use one global quantum)
         m_qk.reset();
@@ -46,6 +49,8 @@ private:
     void isr1();
     /// @brief Interrupt Service Routine, called on rising IRQ
     void isr2();
+
+    void isr3(); // ISR, called on rising IRQ, Receiver
 
     /// @brief user process (just one)
     void thread_process();

@@ -4,7 +4,7 @@
 
 #define SC_INCLUDE_DYNAMIC_PROCESSES
 
-// #include <inttypes.h>
+#include <inttypes.h>
 
 #include "tlm_utils/simple_initiator_socket.h"
 #include "tlm_utils/simple_target_socket.h"
@@ -12,9 +12,7 @@
 using namespace sc_core;
 using namespace std;
 
-#include "receiver/receiver.h"
-#include <sys/types.h>
-#include <time.h>
+#include "receiver.h"
 
 receiver::receiver(sc_module_name name)
 	: sc_module(name), socket("socket")
@@ -22,28 +20,26 @@ receiver::receiver(sc_module_name name)
 	socket.register_b_transport(this, &receiver::b_transport);
 	socket.register_transport_dbg(this, &receiver::transport_dbg);
 
-	SC_THREAD(op_thread);
+	// SC_THREAD(op_thread);
 }
-}
-void receiver::op_thread()
-{
-	for(;;)
-	{	
-		wait(receiverAPUPath | receiverADCPath);
 
-		if(receiverAPUPath.triggered())
-			vectorADD();
+// void receiver::op_thread()
+// {
+// 	for(;;)
+// 	{	
+// 		// wait(receiverAPUPath | receiverADCPath);
 
-		if(receiverADCPath.triggered())
-			vectorSub();
+// 		// if(receiverAPUPath.triggered())
 
-		wait(5, SC_MS); // Wait for 5 ms when it gets notified
+// 		// if(receiverADCPath.triggered())
 
-		CSR = 0; // Operation has concluded reset the CSR Bit
+// 		wait(5, SC_MS); // Wait for 5 ms when it gets notified
 
-		cout << "Operation has concluded resetted Receiver CSR bit \n";
-	}
-}
+// 		CSR = 0; // Operation has concluded reset the CSR Bit
+
+// 		cout << "Operation has concluded resetted Receiver CSR bit \n";
+// 	}
+// }
 
 // called when a TLM transaction arrives for this target
 void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
@@ -84,78 +80,61 @@ void receiver::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 	// handle reads commands
 	if (cmd == tlm::TLM_READ_COMMAND) {
-		static sc_time old_ts = SC_ZERO_TIME, diff;
-		uint32_t v = 0;
-		switch (addr)
-		{
-		case CSR_REGISTER:
-			v = CSR;
-			break;
+		// static sc_time old_ts = SC_ZERO_TIME, diff;
+		// uint32_t v = 0;
+		// switch (addr)
+		// {
+		// case CSR_REGISTER:
+		// 	v = CSR;
+		// 	break;
 		
-		case PATH_APU: // 0x01
-			break;	
+		// case PATH_APU: // 0x01
+		// 	break;	
 
-		case PATH_APU: // 0x02
-			break;	
-
-		case MMR_TRACE:
-			diff = now - old_ts; // diff to last TRACE read call
-			v = now.to_seconds() * 1000 * 1000 * 1000; // ns 
-			cout << "TRACE: "
-				 << " " << now << " diff=" << diff << "\n";
-			old_ts = now;
-			break;
+		// case PATH_ADC: // 0x02
+		// 	break;	
 			
-		default:
-			break;
-		}
-		memcpy(data, &v, len);
+		// default:
+		// 	break;
+		// }
+		// memcpy(data, &v, len);
 
 	// handle write commands
 	} else if (cmd == tlm::TLM_WRITE_COMMAND) {
-		static sc_time old_ts = SC_ZERO_TIME, diff;
-		switch (addr) {
+		// static sc_time old_ts = SC_ZERO_TIME, diff;
+		// switch (addr) {
 
-		case CSR_REGISTER:
-			CSR = *(unsigned int *)data;
+		// case CSR_REGISTER:
+		// 	CSR = *(unsigned int *)data;
 
-			if(CSR == 1) // check 0x01 ADD
-			{
-				printf("Vector Add Triggered\n");
-				receiverAPUPath.notify();
-			}
+		// 	if(CSR == 1) // check 0x01 ADD
+		// 	{
+		// 		printf("Vector Add Triggered\n");
+		// 		receiverAPUPath.notify();
+		// 	}
 
-			else if(CSR == 2) // check 0x02 SUB
-			{
-				printf("Vector Sub Triggered\n");
-				receiverADCPath.notify();
-			}
-			else
-				CSR = 0; // To Stop Polling 
-			break;
+		// 	else if(CSR == 2) // check 0x02 SUB
+		// 	{
+		// 		printf("Vector Sub Triggered\n");
+		// 		receiverADCPath.notify();
+		// 	}
+		// 	else
+		// 		CSR = 0; // To Stop Polling 
+		// 	break;
 
-        case PATH_APU: // 0x01
-			break;	
+        // case PATH_APU: // 0x01
+		// 	break;	
             
-		case PATH_APU: // 0x02
-			break;	
+		// case PATH_ADC: // 0x02
+		// 	break;	
 
-		case MMR_TRACE:
-			diff = now - old_ts; // diff to last TRACE write call
-			cout << "TRACE: "
-				 << " "
-				 << hex << *(uint32_t *)data
-				 << ", " << now << " diff=" << diff << "\n";
-			old_ts = now;
-			break;
-
-		default:
-			break;
+		// default:
+		// 	break;
 		}
-	} else {
-		// no other commands supported
-		trans.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
-	}
+	// } else {
+	// 	// no other commands supported
+	// 	trans.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+	// }
 }
 
 unsigned int receiver::transport_dbg(tlm::tlm_generic_payload &trans)

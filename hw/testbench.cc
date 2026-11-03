@@ -22,11 +22,12 @@ using namespace std;
 #include "debugdev.h"
 #include "swEmu.h"
 #include "vector_processor.h"
+#include <receiver/receiver.h>
 
 // how many initiators (masters) are on the bus iconnect
 #define NR_MASTERS 1
 // how many targets (slaves) are on the bus iconnect
-#define NR_DEVICES 2
+#define NR_DEVICES 3
 
 SC_MODULE(Top)
 {
@@ -34,13 +35,14 @@ SC_MODULE(Top)
 	debugdev debug;
 	SWEmu swEmu;
 	vector_processor vecProc;
-	sc_signal<bool> irqDbg, irqVecProc;
-
+	receiver rx;
+	sc_signal<bool> irqDbg, irqVecProc, irqRx;
 
 	Top(sc_module_name name, const char *sk_descr, sc_time quantum) : bus("bus"),
 																	  debug("debug"),
 																	  swEmu("swEmu"),
-																	  vecProc("vecProc")
+																	  vecProc("vecProc"),
+																	  rx("receiver")
 	{
 		m_qk.set_global_quantum(quantum);
 
@@ -52,6 +54,11 @@ SC_MODULE(Top)
 		bus.memmap(0x49000000ULL, 0x100 - 1,
 					ADDRMODE_RELATIVE, -1, vecProc.socket);
 
+					
+		// map vecProc target (slave) device with base address 
+		bus.memmap(0x50000000ULL, 0x100 - 1,
+					ADDRMODE_RELATIVE, -1, rx.socket);
+
 		// connect the swEmu as a target to the bus port 
 		swEmu.socket.bind(*(bus.t_sk[0]));
 
@@ -61,6 +68,9 @@ SC_MODULE(Top)
 
 		vecProc.irq(irqVecProc);
 		swEmu.irq2(irqVecProc);
+
+		rx.irq(irqRx);
+		swEmu.irq3(irqRx);
 	}
 
 private:
