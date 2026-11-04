@@ -87,16 +87,17 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 	// handle write commands
 	} else if (cmd == tlm::TLM_WRITE_COMMAND) {
 		static sc_time old_ts = SC_ZERO_TIME, diff;
-		printf("Got the call\n");
 		switch (addr) {	
 
 		case ADC_CSR_REGISTER:
-			printf("Got the call 1\n");
 			CSR = *(unsigned int *)data; // Set or Reset
             break;
 
+		case ADC_COMPUTE:
+			printf("data : %u\n", *(unsigned int *)data) ; // Set or Reset
+            break;
+
 		default:
-			printf("Got the call 2\n");
 			break;
 		}
 	} else {

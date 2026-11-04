@@ -28,12 +28,10 @@ int32_t receiver::bitPacking(string time_ns, string i, string q)
 
 void receiver::setCSRBit()
 {
+	uint32_t data = 1;
 	unsigned long long addr = baseAddr;
 
 	trans->set_command(tlm::TLM_WRITE_COMMAND);
-
-	uint32_t data = 1;
-
 	trans->set_address(addr);
 	trans->set_data_ptr(reinterpret_cast<unsigned char *>(&data));
 	trans->set_data_length(4);
@@ -41,8 +39,6 @@ void receiver::setCSRBit()
 	trans->set_byte_enable_ptr(0);                            // 0 indicates unused
 	trans->set_dmi_allowed(false);                            // Mandatory initial value
 	trans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE); // Mandatory initial value
-	
-	printf("setCSRBit Called 2\n");
 
 	sc_time delay(SC_ZERO_TIME);
 	initiator_socket->b_transport(*trans, delay);
@@ -78,12 +74,13 @@ void receiver::sendTLMDataToXADC(int32_t data)
 void receiver::resetCSRBit()
 {
 	printf("resetCSRBit Called \n");
-
+	
+	uint32_t data = 1;
 	unsigned long long addr = baseAddr;
 
 	trans->set_command(tlm::TLM_WRITE_COMMAND);
 	trans->set_address(addr);
-	trans->set_data_ptr(reinterpret_cast<unsigned char *>(0));
+	trans->set_data_ptr(reinterpret_cast<unsigned char *>(&data));
 	trans->set_data_length(4);
 	trans->set_streaming_width(4);                            // = data_length to indicate no streaming
 	trans->set_byte_enable_ptr(0);                            // 0 indicates unused
