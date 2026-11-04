@@ -17,6 +17,16 @@ class adc
 {
 	uint32_t CSR{};
 	uint32_t packedData{};
+
+	double frontEndScaling {0.5}; // Gain or Attenuation
+	double LSB = {1.0 / 4096}; // LSB = 0.244 milli Volt
+
+	// Intermediate Exchange Values 
+	uint16_t time_value{};
+	int8_t i_value{}, q_value{};
+	double i_scaledValue {}, q_scaledValue{};
+	int32_t i_code{}, q_code{};
+
 	sc_core::sc_event ADCInvoked;
 
 public:
