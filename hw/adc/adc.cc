@@ -22,12 +22,35 @@ adc::adc(sc_module_name name)
 	SC_THREAD(op_thread);
 }
 
+void adc::bitUnPacking(uint32_t packedData, uint16_t& time_value, 
+	int8_t& i_value, int8_t& q_value)
+{
+	time_value = (packedData >> 16) & 0xFFFFu;
+	i_value = static_cast<int8_t>((packedData >> 8) & 0xFFu);
+	q_value = static_cast<int8_t>(packedData & 0xFFu);
+}
+
+void adc::analogFrontEnd(const int8_t& i_value,const int8_t& q_value, double& i_scaledValue, double& q_scaledValue)
+{
+	i_scaledValue = i_value * 0.5;	
+	q_scaledValue = q_value * 0.5; // front end gain = 0.5
+}
+
 void adc::op_thread()
 {
 	for(;;)
 	{	
 		wait(ADCInvoked);
+		uint16_t time_value{};
+		int8_t i_value{}, q_value{};
+		
+		double i_scaledValue {}, q_scaledValue{};
+
+		bitUnPacking(packedData, time_value, i_value, q_value);
+		analogFrontEnd(i_value, q_value, i_scaledValue, q_scaledValue); // Rescaled from +-1 V to +- 0.5 V
+
 		printf("packedData : %u | %08X\n", packedData, packedData);
+		printf("UnPackedData time_ns = %08X, i = %f, q = %f\n", time_value, i_scaledValue, q_scaledValue);
 	}
 }
 

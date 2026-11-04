@@ -29,4 +29,8 @@ public:
 	virtual unsigned int transport_dbg(tlm::tlm_generic_payload &trans);
 
 	void op_thread();
+
+	void bitUnPacking(uint32_t, uint16_t&, int8_t&, int8_t&);
+
+	void analogFrontEnd(const int8_t&, const int8_t&, double&, double&);
 };
