@@ -27,9 +27,7 @@ void adc::op_thread()
 	for(;;)
 	{	
 		wait(ADCInvoked);
-		printf("ADC Started \n");
-		wait(5, SC_MS); // Wait for 5 ms when it gets notified
-		CSR = 0; // Operation has concluded reset the CSR Bit
+		printf("packedData : %u | %08X\n", packedData, packedData);
 	}
 }
 
@@ -75,8 +73,7 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 			break;
 
 		case ADC_COMPUTE:
-			if(CSR == 1)
-				ADCInvoked.notify();
+			// Placehold
 			break;
 			
 		default:
@@ -91,10 +88,14 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 		case ADC_CSR_REGISTER:
 			CSR = *(unsigned int *)data; // Set or Reset
-            break;
+			break;
 
 		case ADC_COMPUTE:
-			printf("data : %u\n", *(unsigned int *)data) ; // Set or Reset
+			if(CSR == 1)
+			{
+				packedData = *(unsigned int *)data;
+				ADCInvoked.notify();
+			}
             break;
 
 		default:

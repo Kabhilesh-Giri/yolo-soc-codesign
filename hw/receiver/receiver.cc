@@ -16,12 +16,12 @@ receiver::receiver(sc_module_name name)
 
 int32_t receiver::bitPacking(string time_ns, string i, string q)
 {
-	//Convert String -> 16 bit time value | 8 bit i value | 8 bit q value
-	int32_t time_value = std::stoi(time_ns);
-	int16_t i_value = std::stoi(i);
-	int16_t q_value = std::stoi(q);
+	//Convert String -> 16 bit time value | 8 bit i value | 8 bit q value & Mask
+	int32_t time_value = static_cast<int32_t>(std::stoi(time_ns)) & 0xFFFF;
+	int16_t i_value = static_cast<int32_t>(std::stoi(i))		  &	0xFF;
+	int16_t q_value = static_cast<int32_t>(std::stoi(q))		  &	0xFF;
 
-	int32_t packed = (time_value << 16) | (static_cast<int32_t>(i_value) << 8) | static_cast<int32_t>(q_value);
+	int32_t packed = (time_value << 16) | (i_value << 8) | q_value;
 
 	return packed;
 }
@@ -74,8 +74,8 @@ void receiver::sendTLMDataToXADC(int32_t data)
 void receiver::resetCSRBit()
 {
 	printf("resetCSRBit Called \n");
-	
-	uint32_t data = 1;
+
+	uint32_t data = 0;
 	unsigned long long addr = baseAddr;
 
 	trans->set_command(tlm::TLM_WRITE_COMMAND);
@@ -131,11 +131,7 @@ void receiver::op_thread()
 	{	
 		wait(receiverPowerOn); // Directly feed the data to ADC
 		printf("Signals Receiving \n");
-		read_csv();
-		wait(5, SC_MS); // Wait for 5 ms when it gets notified
-
-		// Here I should direct the read samples with 2 us delay to ADC 
-		
+		read_csv();	
 		CSR = 0; // When the last sample is done 
 	}
 }

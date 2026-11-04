@@ -16,6 +16,7 @@ class adc
 	: public sc_core::sc_module
 {
 	uint32_t CSR{};
+	uint32_t packedData{};
 	sc_core::sc_event ADCInvoked;
 
 public:
