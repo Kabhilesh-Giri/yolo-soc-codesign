@@ -22,18 +22,48 @@ adc::adc(sc_module_name name)
 	SC_THREAD(op_thread);
 }
 
-void adc::bitUnPacking(uint32_t packedData, uint16_t& time_value, 
-	int8_t& i_value, int8_t& q_value)
+void adc::bitUnPacking()
 {
 	time_value = (packedData >> 16) & 0xFFFFu;
 	i_value = static_cast<int8_t>((packedData >> 8) & 0xFFu);
 	q_value = static_cast<int8_t>(packedData & 0xFFu);
 }
 
-void adc::analogFrontEnd(const int8_t& i_value,const int8_t& q_value, double& i_scaledValue, double& q_scaledValue)
+void adc::analogFrontEnd()
 {
 	i_scaledValue = i_value * frontEndScaling;	
 	q_scaledValue = q_value * frontEndScaling; // front end gain = 0.5
+
+	if(i_scaledValue > 2047)
+		i_scaledValue = 2047;
+
+	if(q_scaledValue > 2047)
+		q_scaledValue = 2047;
+
+	if(i_scaledValue < -2048)
+		i_scaledValue = -2048;
+		
+	if(q_scaledValue > -2048)
+		q_scaledValue = -2048;
+}
+
+void adc::XADC_TwoTwelveBits()
+{
+	// 12 bit signed (bipolar) code range
+	constexpr long CODE_MIN = -2048;
+	constexpr long CODE_MAX = 2047;
+
+	// Divide -> Round 
+	long i_raw = std::lround(i_scaledValue / LSB);
+	long q_raw = std::lround(q_scaledValue / LSB);
+
+	// Clamp (saturate , never wrap)
+	i_raw = std::clamp(i_raw, CODE_MIN, CODE_MAX);
+	q_raw = std::clamp(q_raw, CODE_MIN, CODE_MAX);
+
+	// Store
+	i_code = static_cast<int16_t>(i_raw);
+	q_code = static_cast<int16_t>(q_raw);
 }
 
 void adc::op_thread()
@@ -42,16 +72,16 @@ void adc::op_thread()
 	{	
 		wait(ADCInvoked);
 
-		bitUnPacking(packedData, time_value, i_value, q_value);
+		bitUnPacking();
 		
-		analogFrontEnd(i_value, q_value, i_scaledValue, q_scaledValue); // Rescaled from +-1 V to +- 0.5 V
+		analogFrontEnd(); // Rescaled from +-1 V to +- 0.5 V
 
-		i_code = i_scaledValue / LSB; // Find the I & Q Codes
-		q_code = q_scaledValue / LSB;
+		XADC_TwoTwelveBits(); // Divide -> Round -> Clamp -> Store
 
 		printf("packedData : %u | %08X\n", packedData, packedData);
-		printf("UnPackedData time_ns = %08X, i = %f, q = %f\n", time_value, i_scaledValue, q_scaledValue);
-		printf("time_ns = %08X, i = %d, q = %d\n", time_value, i_code, q_code);
+		printf("UnPackedData time_ns = %d, i = %f, q = %f\n", time_value, i_scaledValue, q_scaledValue);
+		printf("time_ns = %d, i = %d, q = %d, i = %X, q = %X\n", time_value, i_code, q_code, i_code, q_code);
+		counter++;
 	}
 }
 

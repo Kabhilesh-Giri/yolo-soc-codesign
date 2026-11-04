@@ -8,6 +8,8 @@
 #define ADC_COMPUTE 0x04
 
 #include <inttypes.h>
+#include <cmath>
+#include <algorithm>
 
 using namespace sc_core;
 using namespace std;
@@ -18,6 +20,8 @@ class adc
 	uint32_t CSR{};
 	uint32_t packedData{};
 
+	int32_t counter {};
+
 	double frontEndScaling {0.5}; // Gain or Attenuation
 	double LSB = {1.0 / 4096}; // LSB = 0.244 milli Volt
 
@@ -25,7 +29,7 @@ class adc
 	uint16_t time_value{};
 	int8_t i_value{}, q_value{};
 	double i_scaledValue {}, q_scaledValue{};
-	int32_t i_code{}, q_code{};
+	int16_t i_code{}, q_code{};
 
 	sc_core::sc_event ADCInvoked;
 
@@ -40,7 +44,9 @@ public:
 
 	void op_thread();
 
-	void bitUnPacking(uint32_t, uint16_t&, int8_t&, int8_t&);
+	void bitUnPacking();
 
-	void analogFrontEnd(const int8_t&, const int8_t&, double&, double&);
+	void analogFrontEnd();
+
+	void XADC_TwoTwelveBits();
 };
