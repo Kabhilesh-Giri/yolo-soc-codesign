@@ -10,7 +10,6 @@ void SWEmu::isr1() {
     cout << "ISR1 called at " << sc_time_stamp() << endl;
 }
 
-
 /// @brief Interrupt Service Routine for debug
 void SWEmu::isr2() {
     // there is a startup intertrupt for no good reason, 
@@ -28,9 +27,18 @@ void SWEmu::isr3() {
     if (sc_time_stamp() < sc_time(1,SC_PS)){
         return;
     }
-    cout << "ISR2  called at " << sc_time_stamp() << endl;
+    cout << "ISR3  called at " << sc_time_stamp() << endl;
 }
 
+/// @brief Interrupt Service Routine for debug
+void SWEmu::isr4() {
+    // there is a startup intertrupt for no good reason, 
+    // ignore it.
+    if (sc_time_stamp() < sc_time(1,SC_PS)){
+        return;
+    }
+    cout << "ISR4  called at " << sc_time_stamp() << endl;
+}
 
 void SWEmu::thread_process()
 {
