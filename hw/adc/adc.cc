@@ -58,7 +58,7 @@ void adc::op_thread()
 {
 	for(;;)
 	{	
-		wait(ADCInvoked);
+		packedData = fifo.read();
 
 		bitUnPacking();
 
@@ -138,8 +138,7 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		case ADC_COMPUTE:
 			if(CSR == 1)
 			{
-				packedData = *(unsigned int *)data;
-				ADCInvoked.notify();
+				fifo.write(*(unsigned int *)data);
 			}
             break;
 

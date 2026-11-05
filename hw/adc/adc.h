@@ -25,13 +25,13 @@ class adc
 	double frontEndScaling {0.5}; // Gain or Attenuation
 	double LSB = {1.0 / 4096}; // LSB = 0.244 milli Volt
 
+	sc_fifo<uint32_t> fifo;
+
 	// Intermediate Exchange Values 
 	uint16_t time_value{};
 	int8_t i_value{}, q_value{};
 	double i_scaledValue {}, q_scaledValue{};
 	int16_t i_code{}, q_code{};
-
-	sc_core::sc_event ADCInvoked;
 
 public:
 	tlm_utils::simple_target_socket<adc> socket;

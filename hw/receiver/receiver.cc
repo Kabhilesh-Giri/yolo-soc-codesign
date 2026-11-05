@@ -50,8 +50,6 @@ void receiver::setCSRBit()
 
 void receiver::sendTLMDataToXADC(int32_t data)
 {
-	printf("sendTLMDataToXADC Called \n");
-
 	unsigned long long addr = baseAddr + (0x04);
 
 	trans->set_command(tlm::TLM_WRITE_COMMAND);
@@ -69,6 +67,8 @@ void receiver::sendTLMDataToXADC(int32_t data)
 	// Initiator obliged to check response status
 	if (trans->is_response_error())
 		SC_REPORT_ERROR("TLM-2", trans->get_response_string().c_str());
+	else
+	printf("Data Transfered from RX to XADC : %d\n", data);
 }
 
 void receiver::resetCSRBit()
