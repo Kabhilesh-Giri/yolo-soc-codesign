@@ -33,18 +33,6 @@ void adc::analogFrontEnd()
 {
 	i_scaledValue = i_value * frontEndScaling;	
 	q_scaledValue = q_value * frontEndScaling; // front end gain = 0.5
-
-	if(i_scaledValue > 2047)
-		i_scaledValue = 2047;
-
-	if(q_scaledValue > 2047)
-		q_scaledValue = 2047;
-
-	if(i_scaledValue < -2048)
-		i_scaledValue = -2048;
-		
-	if(q_scaledValue > -2048)
-		q_scaledValue = -2048;
 }
 
 void adc::XADC_TwoTwelveBits()
@@ -73,14 +61,12 @@ void adc::op_thread()
 		wait(ADCInvoked);
 
 		bitUnPacking();
-		
-		analogFrontEnd(); // Rescaled from +-1 V to +- 0.5 V
 
+		analogFrontEnd(); // Rescaled from +-1 V to +- 0.5 V
 		XADC_TwoTwelveBits(); // Divide -> Round -> Clamp -> Store
 
-		printf("packedData : %u | %08X\n", packedData, packedData);
-		printf("UnPackedData time_ns = %d, i = %f, q = %f\n", time_value, i_scaledValue, q_scaledValue);
-		printf("time_ns = %d, i = %d, q = %d, i = %X, q = %X\n", time_value, i_code, q_code, i_code, q_code);
+		printf("time_ns = %d, i = %d, q = %d, i = %03X, q = %03X\n", time_value, i_code, q_code,
+			(i_code & 0xFFF), (q_code & 0xFFF));
 		counter++;
 	}
 }
@@ -141,7 +127,9 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		switch (addr) {	
 
 		case ADC_CSR_REGISTER:
+			printf("Total Conversion : %d\n", counter);
 			CSR = *(unsigned int *)data; // Set or Reset
+			counter = 0;
 			break;
 
 		case ADC_COMPUTE:
