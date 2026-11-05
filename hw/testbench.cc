@@ -26,7 +26,7 @@ using namespace std;
 #include <adc/adc.h>
 
 // how many initiators (masters) are on the bus iconnect
-#define NR_MASTERS 2
+#define NR_MASTERS 3
 // how many targets (slaves) are on the bus iconnect
 #define NR_DEVICES 4
 
@@ -69,6 +69,7 @@ SC_MODULE(Top)
 		// connect the swEmu as a target to the bus port 
 		swEmu.socket.bind(*(bus.t_sk[0]));
 		rx.initiator_socket.bind(*(bus.t_sk[1]));
+		xadc.initiator_socket.bind(*(bus.t_sk[2]));
 
 		// connect interrupt wires 
 		debug.irq(irqDbg);

@@ -18,6 +18,8 @@ adc::adc(sc_module_name name)
 {
 	socket.register_b_transport(this, &adc::b_transport);
 	socket.register_transport_dbg(this, &adc::transport_dbg);
+	
+	trans = new tlm::tlm_generic_payload;
 
 	SC_THREAD(op_thread);
 }
@@ -54,20 +56,62 @@ void adc::XADC_TwoTwelveBits()
 	q_code = static_cast<int16_t>(q_raw);
 }
 
+void adc::sendTLMDataToVecProc(uint32_t data, uint32_t index)
+{
+	unsigned long long addr = 0x49000000 + VB_BASE + index;
+
+	trans->set_command(tlm::TLM_WRITE_COMMAND);
+	trans->set_address(addr);
+	trans->set_data_ptr(reinterpret_cast<unsigned char *>(&data));
+	trans->set_data_length(4);
+	trans->set_streaming_width(4);                            // = data_length to indicate no streaming
+	trans->set_byte_enable_ptr(0);                            // 0 indicates unused
+	trans->set_dmi_allowed(false);                            // Mandatory initial value
+	trans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE); // Mandatory initial value
+
+	sc_time delay(SC_ZERO_TIME);
+	initiator_socket->b_transport(*trans, delay);
+	
+	// Initiator obliged to check response status
+	if (trans->is_response_error())
+		SC_REPORT_ERROR("TLM-2", trans->get_response_string().c_str());
+	else
+		printf("Data Transfered from XADC to Vector Processor : %d\n", data);
+
+}
+
 void adc::op_thread()
 {
+	constexpr uint32_t VB_BYTES = 16 * 4;
 	for(;;)
 	{	
-		packedData = fifo.read();
+		packedData = fifo.read(); // blocks until the RX has sent the packet 
+		busy = true;
 
 		bitUnPacking();
 
 		analogFrontEnd(); // Rescaled from +-1 V to +- 0.5 V
 		XADC_TwoTwelveBits(); // Divide -> Round -> Clamp -> Store
 
-		printf("time_ns = %d, i = %d, q = %d, i = %03X, q = %03X\n", time_value, i_code, q_code,
-			(i_code & 0xFFF), (q_code & 0xFFF));
-		counter++;
+		// VB holds 16 words : never write past it into VC
+
+		if(index + 8 <= VB_BYTES)
+		{
+			sendTLMDataToVecProc(i_code, index); 
+			index += 0x04;
+			sendTLMDataToVecProc(q_code, index);
+			index += 0x04;
+			counter++;
+		}
+		else
+		{
+			printf("XADC : VB full, sample dropped\n");
+		}
+
+		busy = false;
+
+		if(CSR == 0 && fifo.num_available() == 0)
+			printf("Total Conversion : %d \n", counter);
 	}
 }
 
@@ -128,11 +172,14 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 		case ADC_CSR_REGISTER:
 			CSR = *(unsigned int *)data; // Set or Reset
-			if(CSR == 0)
+			if(CSR == 1)
 			{
-				printf("Total Conversion : %d\n", counter);
+				// New run : fill VB from the start 
+				index = 0;
 				counter = 0;
 			}
+			else if(CSR == 0 && !busy && fifo.num_available() == 0)
+				printf("Total Conversion : %d \n", counter);
 			break;
 
 		case ADC_COMPUTE:
