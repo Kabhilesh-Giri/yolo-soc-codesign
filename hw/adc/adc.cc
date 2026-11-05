@@ -127,9 +127,12 @@ void adc::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		switch (addr) {	
 
 		case ADC_CSR_REGISTER:
-			printf("Total Conversion : %d\n", counter);
 			CSR = *(unsigned int *)data; // Set or Reset
-			counter = 0;
+			if(CSR == 0)
+			{
+				printf("Total Conversion : %d\n", counter);
+				counter = 0;
+			}
 			break;
 
 		case ADC_COMPUTE:
