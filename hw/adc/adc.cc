@@ -77,6 +77,31 @@ void adc::sendTLMDataToVecProc(uint32_t data, uint32_t index)
 		SC_REPORT_ERROR("TLM-2", trans->get_response_string().c_str());
 	else
 		printf("Data Transfered from XADC to Vector Processor : %d\n", data);
+}
+
+void adc::TriggerMAC()
+{
+	// Executer the MAC 
+	unsigned long long addr = 0x49000000; // #define CSR_REGISTER 0x0
+
+	unsigned int data = 5; // CSR MAC Address
+	trans->set_command(tlm::TLM_WRITE_COMMAND);
+	trans->set_address(addr);
+	trans->set_data_ptr(reinterpret_cast<unsigned char *>(&data));
+	trans->set_data_length(4);
+	trans->set_streaming_width(4);                            // = data_length to indicate no streaming
+	trans->set_byte_enable_ptr(0);                            // 0 indicates unused
+	trans->set_dmi_allowed(false);                            // Mandatory initial value
+	trans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE); // Mandatory initial value
+
+	sc_time delay(SC_ZERO_TIME);
+	initiator_socket->b_transport(*trans, delay);
+	
+	// Initiator obliged to check response status
+	if (trans->is_response_error())
+		SC_REPORT_ERROR("TLM-2", trans->get_response_string().c_str());
+	else
+		printf("TriggerMAC Transfered from XADC to Vector Processor : %d\n", data);
 
 }
 
@@ -112,6 +137,9 @@ void adc::op_thread()
 
 		if(CSR == 0 && fifo.num_available() == 0)
 			printf("Total Conversion : %d \n", counter);
+
+		if (index == VB_BYTES)
+			TriggerMAC();
 	}
 }
 

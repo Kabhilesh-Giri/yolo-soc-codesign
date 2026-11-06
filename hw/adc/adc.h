@@ -60,4 +60,6 @@ public:
 	void XADC_TwoTwelveBits();
 
 	void sendTLMDataToVecProc(uint32_t, uint32_t);
+
+	void TriggerMAC();
 };

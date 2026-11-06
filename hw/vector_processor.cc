@@ -66,6 +66,8 @@ void vector_processor::vectorMAC()
 	{
 		VC[i] += (VA[i] * VB[i]);
 	}
+
+	printf("MAC Operation Complete\n");
 }
 
 void vector_processor::op_thread()
