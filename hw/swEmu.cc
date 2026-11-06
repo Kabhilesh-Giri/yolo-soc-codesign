@@ -42,7 +42,25 @@ void SWEmu::isr4() {
 
 void SWEmu::thread_process()
 {
+    // Set All the Vector Registers VC & VB to Zero and Load the VA with Weights 
 
+
+
+    // Power On the Rx
+
+
+
+    // Polling to check the Vector Processor CSR == 5 or not
+
+
+
+    // If it becames CSR = 5 not keep CSR == 0 or not
+
+
+    // Print the VC 
+
+    // --- done ---
+    
     // set base address of device to communicate to
     dev_addr_set(0x50000000ULL); 
     // simulate some startup  delay
