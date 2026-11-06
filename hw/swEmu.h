@@ -60,6 +60,8 @@ private:
     /// @brief user process (just one)
     void thread_process();
 
+    uint32_t pollingCounts {};
+
     tlm::tlm_generic_payload *trans;  /// payload for transactions 
     tlm_utils::tlm_quantumkeeper m_qk; // Quantum keeper for temporal decoupling
     sc_time timeOffset; /// local time offset to systemc time 
