@@ -2,8 +2,8 @@ CFLAGS+=-g
 # TARGET=debugread
 # SOURCE=debugread.c
 
-TARGET=vector_testbench
-SOURCE=vector_testbench.c
+TARGET=vectorWaveFirmware
+SOURCE=vectorWaveFirmware.c
 
 DEBUG_PORT?=10024
 QEMU_HOSTNAME?=qemu
