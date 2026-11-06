@@ -43,10 +43,12 @@ using namespace std;
 #include "iconnect.h"
 #include "debugdev.h"
 #include "vector_processor.h"
+#include <receiver/receiver.h>
+#include <adc/adc.h>
 #include "soc/xilinx/zynq/xilinx-zynq.h"
 
-#define NR_MASTERS 1
-#define NR_DEVICES 3
+#define NR_MASTERS 3
+#define NR_DEVICES 4
 
 SC_MODULE(Top)
 {
@@ -54,6 +56,8 @@ SC_MODULE(Top)
 	xilinx_zynq zynq;
 	debugdev debug;
 	vector_processor vecProc;
+	receiver rx;
+	adc xadc;
 	sc_signal<bool> rst;
 
 	SC_HAS_PROCESS(Top);
@@ -70,6 +74,8 @@ SC_MODULE(Top)
 																	  zynq("zynq", sk_descr),
 																	  debug("debug"),
 																	  vecProc("vecProc"),
+																	  rx("receiver"),
+																	  xadc("XADC"),
 																	  rst("rst")
 	{
 		m_qk.set_global_quantum(quantum);
@@ -81,12 +87,23 @@ SC_MODULE(Top)
 
 		bus.memmap(0x49000000ULL, 0x100 - 1, // Vector Processor Device
 				   ADDRMODE_RELATIVE, -1, vecProc.socket);
-
+		
+		bus.memmap(0x50000000ULL, 0x100 - 1,
+					ADDRMODE_RELATIVE, -1, rx.socket);
+		
+		// map ADC target (slave) device with base address 
+		bus.memmap(0x60000000ULL, 0x100 - 1,
+					ADDRMODE_RELATIVE, -1, xadc.socket);
+					
 		zynq.m_axi_gp[0]->bind(*(bus.t_sk[0]));
+		rx.initiator_socket.bind(*(bus.t_sk[1]));
+		xadc.initiator_socket.bind(*(bus.t_sk[2]));
 
 		/* Connect the PL irqs to the irq_pl_to_ps wires.  */
 		debug.irq(zynq.pl2ps_irq[0]);
 		vecProc.irq(zynq.pl2ps_irq[1]);
+		rx.irq(zynq.pl2ps_irq[2]);
+		xadc.irq(zynq.pl2ps_irq[3]);
 
 		/* Tie off any remaining unconnected signals.  */
 		zynq.tie_off();

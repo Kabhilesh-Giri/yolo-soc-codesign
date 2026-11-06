@@ -46,9 +46,7 @@ void SWEmu::thread_process()
 
     const int32_t weights[16] = { 0, 0,  0, 1,  0, 0,  0, -1,
                                 0, 0,  0, 1,  0, 0,  0, -1 };
-
-    const int32_t threshold = 4000;
-
+                                
     dev_addr_set(0x49000000ULL); 
 
     // Set Vector A to Weights
@@ -99,5 +97,4 @@ void SWEmu::thread_process()
     // stop simulation and exit, done with the testbench
     retVal = 0; // all good (set process exit value)
     sc_stop();
-
 }
