@@ -94,7 +94,7 @@ void vector_processor::op_thread()
 		wait(5, SC_MS); // Wait for 5 ms when it gets notified
 
 		CSR = 0; // Operation has concluded reset the CSR Bit
-
+		doneCount++;
 		cout << "Operation has concluded resetted CSR bit \n";
 	}
 }
@@ -175,6 +175,10 @@ void vector_processor::b_transport(tlm::tlm_generic_payload &trans, sc_time &del
 			old_ts = now;
 			break;
 			
+		case DONE_COUNT:
+			v = doneCount;
+			break;
+				
 		default:
 			break;
 		}

@@ -31,7 +31,7 @@ ZYNQ_TOP_O = $(ZYNQ_TOP_C:.cc=.o)
 ZYNQ_OBJS += $(ZYNQ_TOP_O)
 
 SC_OBJS += trace.o
-SC_OBJS += debugdev.o vector_processor.o receiver/receiver.o adc/adc.o
+SC_OBJS += debugdev.o vector_processor.o receiver/receiver.o adc/adc.o esp32_led/esp32_led.o
 
 TB_OBJS := $(SC_OBJS) testbench.o swEmu.o
 

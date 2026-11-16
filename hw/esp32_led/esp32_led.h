@@ -22,11 +22,12 @@ public:
 	virtual unsigned int transport_dbg(tlm::tlm_generic_payload &trans);
 
 private:
-	int fd = -1;            // TCP connection to the ESP32
-	std::string pending;    // bytes received after the last complete reply
+	int fd = -1;            // the serial port (/dev/ttyUSB0)
+	std::string pending;    // bytes received after the last complete line
 	uint32_t ledValue = 0;  // last value written to the LED register
 
-	void connectToEsp32();
+	void openSerial();
+	bool readLine(std::string &line, int timeoutSeconds);
 	bool sendCommand(const std::string &command, std::string &reply);
 };
 

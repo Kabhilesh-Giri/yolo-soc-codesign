@@ -8,6 +8,7 @@
 #define VA_BASE 0x04     // VA The base address of the first vector operand
 #define VB_BASE 0x44     // VB The base address of the second vector operand
 #define VC_BASE 0x84     // VC The base address of the output vector
+#define DONE_COUNT 0xC8
 #define MMR_TRACE 0xC4
 
 #define VEC_WORDS 16 			  // 16 Word Count
@@ -28,6 +29,8 @@ class vector_processor
 	uint32_t VA[VEC_WORDS];
 	uint32_t VB[VEC_WORDS];
 	uint32_t VC[VEC_WORDS];
+
+	uint32_t doneCount {};
 
 	uint32_t index = 0;
 	uint32_t bytes = 0;

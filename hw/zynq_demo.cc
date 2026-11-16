@@ -45,10 +45,12 @@ using namespace std;
 #include "vector_processor.h"
 #include <receiver/receiver.h>
 #include <adc/adc.h>
+#include <esp32_led/esp32_led.h>
+
 #include "soc/xilinx/zynq/xilinx-zynq.h"
 
 #define NR_MASTERS 3
-#define NR_DEVICES 4
+#define NR_DEVICES 5
 
 SC_MODULE(Top)
 {
@@ -58,6 +60,7 @@ SC_MODULE(Top)
 	vector_processor vecProc;
 	receiver rx;
 	adc xadc;
+	esp32_led esp32;
 	sc_signal<bool> rst;
 
 	SC_HAS_PROCESS(Top);
@@ -76,6 +79,7 @@ SC_MODULE(Top)
 																	  vecProc("vecProc"),
 																	  rx("receiver"),
 																	  xadc("XADC"),
+																	  esp32("ESP32_MCU"),
 																	  rst("rst")
 	{
 		m_qk.set_global_quantum(quantum);
@@ -94,6 +98,10 @@ SC_MODULE(Top)
 		// map ADC target (slave) device with base address 
 		bus.memmap(0x60000000ULL, 0x100 - 1,
 					ADDRMODE_RELATIVE, -1, xadc.socket);
+
+		// map ESP32 MCU target (slave) device with base address 
+		bus.memmap(0x4A000000ULL, 0x100 - 1,
+					ADDRMODE_RELATIVE, -1, esp32.socket);
 					
 		zynq.m_axi_gp[0]->bind(*(bus.t_sk[0]));
 		rx.initiator_socket.bind(*(bus.t_sk[1]));

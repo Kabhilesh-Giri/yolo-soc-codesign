@@ -8,6 +8,7 @@
 /// physical base addresses of the SystemC devices
 #define VECPROC_ADDR  (0x49000000)
 #define RECEIVER_ADDR (0x50000000)
+#define ESP32_ADDR (0x4A000000)
 
 /// register offsets
 #define CSR        0x00
@@ -16,6 +17,8 @@
 #define VC_BASE    0x84
 #define VEC_WORDS  16
 #define MAC_OPCODE 5
+#define LED_REG 0x00 
+#define DONE_COUNT 0xC8
 
 /// map one device's page of physical memory into this process
 static void *map_device(int fd, unsigned long phys, unsigned page_size)
@@ -48,6 +51,9 @@ int main(int argc, char *argv[])
 
 	void *vec = map_device(fd, VECPROC_ADDR, page_size);
 	void *rx  = map_device(fd, RECEIVER_ADDR, page_size);
+	void *esp32  = map_device(fd, ESP32_ADDR, page_size);
+
+	*(volatile unsigned int*)(esp32 + LED_REG) = 0; // LED OFF : Start of a new run
 
 	// Initialize the Vector Processor's Registers
 		// Load the weights into VA
@@ -62,18 +68,17 @@ int main(int argc, char *argv[])
 		*(volatile unsigned int*)(vec + VC_BASE + 4 * i) = 0;
 	}
 
+	unsigned int doneBefore = *(volatile unsigned int*)(vec + DONE_COUNT);
+
 	// Power On the Rx: Rx -> XADC -> VecProc runs in hardware from here
 	*(volatile unsigned int*)(rx + CSR) = 1;
 	printf("CPU : Receiver powered on\n");
 
-	// Poll the Vector Processor CSR: 0 (idle) -> 5 (MAC running) -> 0 (done)
-	while (*(volatile unsigned int*)(vec + CSR) == 0)
-		pollingCounts++;
-
-	while (*(volatile unsigned int*)(vec + CSR) == MAC_OPCODE)
+	while (*(volatile unsigned int*)(vec + DONE_COUNT) == doneBefore)
 		pollingCounts++;
 
 	printf("CPU : MAC done, pollingCounts = %u\n", pollingCounts);
+	*(volatile unsigned int*)(esp32 + LED_REG) = 1; // LED ON : MAC has finished
 
 	// Read VC as [I, Q] pairs, one sample per line
 	for (int i = 0; i < VEC_WORDS; i += 2) {
@@ -85,6 +90,8 @@ int main(int argc, char *argv[])
 	// TearDown Code
 	munmap(vec, page_size);
 	munmap(rx, page_size);
+	munmap(esp32, page_size);
+
 	close(fd);
 	
 	return 0;

@@ -1,25 +1,24 @@
 /*
- * esp32_led - a bus target that forwards LED writes to a real ESP32 over TCP.
- * Same structure as debugdev: a target socket, b_transport and transport_dbg.
+ * esp32_led - a bus target that forwards LED writes to an ESP32 over USB serial.
+ * Port from ESP32_TTY (default /dev/ttyUSB0), 115200 baud, 8N1, raw.
  */
 
 #include "esp32_led.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/time.h>
+#include <fcntl.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 using namespace sc_core;
 
-static const uint16_t ESP32_PORT      = 5025;
-static const int      REPLY_TIMEOUT_S = 1;
+static const int REPLY_TIMEOUT_S = 1;   // per command
+static const int READY_TIMEOUT_S = 5;   // ESP32 boot after the port opens
 
 esp32_led::esp32_led(sc_module_name name)
 	: sc_module(name), socket("socket")
@@ -27,7 +26,7 @@ esp32_led::esp32_led(sc_module_name name)
 	socket.register_b_transport(this, &esp32_led::b_transport);
 	socket.register_transport_dbg(this, &esp32_led::transport_dbg);
 
-	connectToEsp32();
+	openSerial();
 }
 
 esp32_led::~esp32_led()
@@ -36,92 +35,112 @@ esp32_led::~esp32_led()
 		::close(fd);
 }
 
-// Called once at start-up: connect to the ESP32 named by ESP32_IP.
-void esp32_led::connectToEsp32()
+// Called once at start-up: open the port, set 115200 8N1 raw, wait for "READY".
+void esp32_led::openSerial()
 {
-	const char *ip = std::getenv("ESP32_IP");
-	if (ip == nullptr) {
-		std::fprintf(stderr, "esp32_led: set ESP32_IP to the address the ESP32 prints "
-				     "(for example ESP32_IP=10.71.163.178)\n");
-		std::exit(EXIT_FAILURE);
-	}
+	const char *env = std::getenv("ESP32_TTY");
+	const char *tty = env ? env : "/dev/ttyUSB0";
 
-	sockaddr_in addr{};
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(ESP32_PORT);
-	if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1) {
-		std::fprintf(stderr, "esp32_led: ESP32_IP is not an IPv4 address: %s\n", ip);
-		std::exit(EXIT_FAILURE);
-	}
-
-	fd = ::socket(AF_INET, SOCK_STREAM, 0);   // '::' because 'socket' is also our TLM socket
+	fd = ::open(tty, O_RDWR | O_NOCTTY);
 	if (fd < 0) {
-		std::perror("esp32_led: socket");
+		std::fprintf(stderr, "esp32_led: cannot open %s: %s\n"
+			     "  (is the board attached? usbipd attach --wsl --busid <id>)\n",
+			     tty, std::strerror(errno));
 		std::exit(EXIT_FAILURE);
 	}
 
-	// A reply must arrive within 1 s. On Linux the send timeout also limits connect().
-	timeval tv{};
-	tv.tv_sec = REPLY_TIMEOUT_S;
-	setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-	setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-
-	if (::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
-		std::fprintf(stderr, "esp32_led: cannot connect to %s:%u: %s\n", ip, ESP32_PORT,
-			     errno == EINPROGRESS ? "timed out" : std::strerror(errno));
+	termios tio{};
+	if (tcgetattr(fd, &tio) != 0) {
+		std::perror("esp32_led: tcgetattr");
 		std::exit(EXIT_FAILURE);
 	}
-	std::printf("esp32_led: connected to the ESP32 at %s:%u\n", ip, ESP32_PORT);
+	cfmakeraw(&tio);                  // no echo, no line editing, 8 data bits
+	cfsetispeed(&tio, B115200);
+	cfsetospeed(&tio, B115200);
+	tio.c_cflag |= (CLOCAL | CREAD);  // ignore modem lines, enable the receiver
+	tio.c_cflag &= ~CSTOPB;           // 1 stop bit
+	tio.c_cflag &= ~CRTSCTS;          // no hardware flow control
+	tio.c_cc[VMIN]  = 0;              // read() returns when data arrives...
+	tio.c_cc[VTIME] = 10;             // ...or after 1.0 s (0 = timeout)
+	if (tcsetattr(fd, TCSANOW, &tio) != 0) {
+		std::perror("esp32_led: tcsetattr");
+		std::exit(EXIT_FAILURE);
+	}
+
+	// Opening the port usually resets the ESP32 (auto-reset circuit). Its boot ROM
+	// prints text first, so skip every line until "READY" arrives.
+	std::time_t start = std::time(nullptr);
+	std::string line;
+	while (std::time(nullptr) - start < READY_TIMEOUT_S) {
+		if (readLine(line, 1) && line == "READY") {
+			std::printf("esp32_led: ESP32 ready on %s\n", tty);
+			return;
+		}
+	}
+
+	// No reset happened (the board was already running): ask it directly.
+	std::string reply;
+	if (sendCommand("LED 0", reply) && reply == "OK") {
+		std::printf("esp32_led: ESP32 answering on %s\n", tty);
+		return;
+	}
+	std::fprintf(stderr, "esp32_led: no READY or OK from the ESP32 on %s\n", tty);
+	std::exit(EXIT_FAILURE);
 }
 
-// Sends one command line and waits for one reply line (returned without '\n').
-bool esp32_led::sendCommand(const std::string &command, std::string &reply)
+// Reads one line (returned without '\n' or '\r'). False on timeout or error.
+bool esp32_led::readLine(std::string &line, int timeoutSeconds)
 {
-	// TCP may take only part of the data, so keep sending until all of it is out.
-	// MSG_NOSIGNAL: a closed connection gives an error instead of killing us with SIGPIPE.
-	const std::string line = command + "\n";
-	size_t sent = 0;
-	while (sent < line.size()) {
-		ssize_t n = ::send(fd, line.data() + sent, line.size() - sent, MSG_NOSIGNAL);
-		if (n < 0) {
-			if (errno == EINTR)
-				continue;
-			std::perror("esp32_led: send");
-			return false;
-		}
-		sent += static_cast<size_t>(n);
-	}
-
-	// TCP is a byte stream: the reply can arrive in pieces, so read until '\n'.
+	std::time_t start = std::time(nullptr);
 	while (true) {
 		size_t lf = pending.find('\n');
 		if (lf != std::string::npos) {
-			reply = pending.substr(0, lf);
+			line = pending.substr(0, lf);
 			pending.erase(0, lf + 1);
-			if (!reply.empty() && reply.back() == '\r')
-				reply.pop_back();
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
 			return true;
 		}
+		if (std::time(nullptr) - start >= timeoutSeconds)
+			return false;
 
 		char buf[64];
-		ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
+		ssize_t n = ::read(fd, buf, sizeof(buf));
 		if (n > 0) {
 			pending.append(buf, static_cast<size_t>(n));
 			continue;
 		}
-		if (n == 0) {
-			std::fprintf(stderr, "esp32_led: the ESP32 closed the connection\n");
-			return false;
-		}
+		if (n == 0)                // VTIME expired with no data: keep waiting
+			continue;
 		if (errno == EINTR)
 			continue;
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			std::fprintf(stderr, "esp32_led: no reply within %d s\n", REPLY_TIMEOUT_S);
-			return false;
-		}
-		std::perror("esp32_led: recv");
+		std::perror("esp32_led: read");
 		return false;
 	}
+}
+
+// Sends one command line and waits for one reply line.
+bool esp32_led::sendCommand(const std::string &command, std::string &reply)
+{
+	const std::string out = command + "\n";
+	size_t sent = 0;
+	while (sent < out.size()) {
+		ssize_t n = ::write(fd, out.data() + sent, out.size() - sent);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			std::perror("esp32_led: write");
+			return false;
+		}
+		sent += static_cast<size_t>(n);
+	}
+	tcdrain(fd);                       // wait until the bytes have left the port
+
+	if (!readLine(reply, REPLY_TIMEOUT_S)) {
+		std::fprintf(stderr, "esp32_led: no reply within %d s\n", REPLY_TIMEOUT_S);
+		return false;
+	}
+	return true;
 }
 
 void esp32_led::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
@@ -133,7 +152,6 @@ void esp32_led::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 	unsigned char *byt = trans.get_byte_enable_ptr();
 	unsigned int wid = trans.get_streaming_width();
 
-	// Same checks as debugdev: no byte enables, no bursts.
 	if (byt != 0) {
 		trans.set_response_status(tlm::TLM_BYTE_ENABLE_ERROR_RESPONSE);
 		return;
@@ -143,12 +161,10 @@ void esp32_led::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		return;
 	}
 
-	// Same 1 us register-access cost as the other devices.
 	delay += sc_time(1, SC_US);
 	wait(delay);
 	delay = SC_ZERO_TIME;
 
-	// Only one register exists. Anything else is a bus error for the firmware.
 	if (addr != 0x00) {
 		trans.set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
 		return;
@@ -163,7 +179,6 @@ void esp32_led::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 		std::memcpy(&value, data, len);
 		const std::string command = (value & 1) ? "LED 1" : "LED 0";
 
-		// The simulation (and QEMU) wait here until the ESP32 answers.
 		std::string reply;
 		if (sendCommand(command, reply) && reply == "OK") {
 			ledValue = value & 1;
@@ -182,6 +197,5 @@ void esp32_led::b_transport(tlm::tlm_generic_payload &trans, sc_time &delay)
 
 unsigned int esp32_led::transport_dbg(tlm::tlm_generic_payload &trans)
 {
-	unsigned int len = trans.get_data_length();
-	return len;
+	return trans.get_data_length();
 }
